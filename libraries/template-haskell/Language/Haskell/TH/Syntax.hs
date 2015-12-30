@@ -1410,6 +1410,24 @@ data Clause = Clause [Pat] Body [Dec]
                                   -- ^ @f { p1 p2 = body where decs }@
     deriving( Show, Eq, Ord, Data, Typeable, Generic )
 
+data PatSynDir
+  = UnidirectionalDir
+  | ImplicitBidirectionalDir
+  | ExplicitBidirectionalDir [Match]
+  deriving ( Show, Eq, Ord, Data, Typeable, Generic )
+
+data RecordPatSynField =
+  RecordPatSynField Name
+                    Name
+  deriving ( Show, Eq, Ord, Data, Typeable, Generic )
+
+data PatSynDetails
+  = InfixPatSyn Name
+                Name
+  | PrefixPatSyn [Name]
+  | RecordPatSyn [RecordPatSynField]
+  deriving ( Show, Eq, Ord, Data, Typeable, Generic )
+
 data Exp
   = VarE Name                          -- ^ @{ x }@
   | ConE Name                          -- ^ @data T1 = C1 t1 t2; p = {C1} e1 e2  @
@@ -1499,6 +1517,7 @@ data Dec
              Con Cxt              -- ^ @{ newtype Cxt x => T x = A (B x)
                                   --       deriving (Z,W Q)}@
   | TySynD Name [TyVarBndr] Type  -- ^ @{ type T x = (x,x) }@
+  | PatSynD Name PatSynDetails Pat PatSynDir
   | ClassD Cxt Name [TyVarBndr]
          [FunDep] [Dec]           -- ^ @{ class Eq a => Ord a where ds }@
   | InstanceD Cxt Type [Dec]      -- ^ @{ instance Show w => Show [w]

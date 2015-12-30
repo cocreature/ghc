@@ -188,6 +188,14 @@ cvtDec (TySynD tc tvs rhs)
                   , tcdTyVars = tvs', tcdFVs = placeHolderNames
                   , tcdRhs = rhs' } }
 
+cvtDec (PatSynD tc details pat dir) =
+  do nm <- vcNameL tc
+     details' <- cvtPatSynDetails details
+     pat' <- cvtPat pat
+     dir' <- cvtPatSynDir dir
+     returnJustL $
+       Hs.ValD $ Hs.PatSynBind (Hs.PSB nm PlaceHolder details' pat' dir')
+
 cvtDec (DataD ctxt tc tvs ksig constrs derivs)
   = do  { let isGadtCon (GadtC    _ _ _) = True
               isGadtCon (RecGadtC _ _ _) = True
@@ -919,6 +927,28 @@ cvtMatch (TH.Match p body decs)
         ; decs' <- cvtLocalDecs (ptext (sLit "a where clause")) decs
         ; returnL $ Hs.Match NonFunBindMatch [p'] Nothing
                              (GRHSs g' (noLoc decs')) }
+
+cvtPatSynDir :: TH.PatSynDir -> CvtM (Hs.HsPatSynDir RdrName)
+cvtPatSynDir TH.UnidirectionalDir = pure Hs.Unidirectional
+cvtPatSynDir TH.ImplicitBidirectionalDir = pure Hs.ImplicitBidirectional
+cvtPatSynDir (TH.ExplicitBidirectionalDir ms) =
+  do ms' <- mapM cvtMatch ms
+     pure $ Hs.ExplicitBidirectional (mkMatchGroup FromSource ms')
+
+cvtRecordPatSynField :: TH.RecordPatSynField -> CvtM (Hs.RecordPatSynField (Located RdrName))
+cvtRecordPatSynField (TH.RecordPatSynField a b) =
+  do a' <- vcNameL a
+     b' <- vcNameL b
+     pure (Hs.RecordPatSynField a' b')
+
+cvtPatSynDetails :: TH.PatSynDetails -> CvtM (Hs.HsPatSynDetails (Located RdrName))
+cvtPatSynDetails (TH.InfixPatSyn t1 t2) =
+  do n1 <- vcNameL t1
+     n2 <- vcNameL t2
+     pure (Hs.InfixPatSyn n1 n2)
+cvtPatSynDetails (TH.PrefixPatSyn ts) = Hs.PrefixPatSyn <$> mapM vcNameL ts
+cvtPatSynDetails (TH.RecordPatSyn fields) =
+  Hs.RecordPatSyn <$> mapM cvtRecordPatSynField fields
 
 cvtGuard :: TH.Body -> CvtM [LGRHS RdrName (LHsExpr RdrName)]
 cvtGuard (GuardedB pairs) = mapM cvtpair pairs

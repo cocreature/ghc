@@ -20,6 +20,9 @@ import Data.Word( Word8 )
 
 type InfoQ               = Q Info
 type PatQ                = Q Pat
+type PatSynDirQ          = Q PatSynDir
+type RecordPatSynFieldQ  = Q RecordPatSynField
+type PatSynDetailsQ      = Q PatSynDetails
 type FieldPatQ           = Q FieldPat
 type ExpQ                = Q Exp
 type TExpQ a             = Q (TExp a)
@@ -344,6 +347,31 @@ funD nm cs =
 
 tySynD :: Name -> [TyVarBndr] -> TypeQ -> DecQ
 tySynD tc tvs rhs = do { rhs1 <- rhs; return (TySynD tc tvs rhs1) }
+
+unidirectional :: PatSynDirQ
+unidirectional = pure UnidirectionalDir
+
+implicitBidirectional :: PatSynDirQ
+implicitBidirectional = pure ImplicitBidirectionalDir
+
+explicitBidirectional :: [MatchQ] -> PatSynDirQ
+explicitBidirectional ms = ExplicitBidirectionalDir <$> sequence ms
+
+infixPatSyn :: Name -> Name -> PatSynDetailsQ
+infixPatSyn n1 n2 = pure (InfixPatSyn n1 n2)
+
+prefixPatSyn :: [Name] -> PatSynDetailsQ
+prefixPatSyn = pure . PrefixPatSyn
+
+recordPatSyn :: [RecordPatSynFieldQ] -> PatSynDetailsQ
+recordPatSyn fields = RecordPatSyn <$> sequence fields
+
+patSynD :: Name -> PatSynDetailsQ -> PatQ -> PatSynDirQ -> DecQ
+patSynD tc details p dir =
+  do p' <- p
+     details' <- details
+     dir' <- dir
+     return (PatSynD tc details' p' dir')
 
 dataD :: CxtQ -> Name -> [TyVarBndr] -> Maybe Kind -> [ConQ] -> CxtQ -> DecQ
 dataD ctxt tc tvs ksig cons derivs =
