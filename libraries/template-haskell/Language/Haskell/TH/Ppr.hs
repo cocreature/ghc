@@ -285,7 +285,7 @@ ppr_dec _ (TySynD t xs rhs)
   = ppr_tySyn empty t (hsep (map ppr xs)) rhs
 ppr_dec _ (DataD ctxt t xs ksig cs decs)
   = ppr_data empty ctxt t (hsep (map ppr xs)) ksig cs decs
-ppr_dec _ (PatSynD n details pat dir) = _
+ppr_dec _ (PatSynD t details pat dir) = ppr_patsyn t details pat dir
 ppr_dec _ (NewtypeD ctxt t xs ksig c decs)
   = ppr_newtype empty ctxt t (sep (map ppr xs)) ksig c decs
 ppr_dec _  (ClassD ctxt c xs fds ds)
@@ -339,6 +339,10 @@ ppr_dec _ (StandaloneDerivD cxt ty)
 
 ppr_dec _ (DefaultSigD n ty)
   = hsep [ text "default", pprPrefixOcc n, dcolon, ppr ty ]
+
+-- TODO (cocreature): Fix pretty printing
+ppr_patsyn :: Name -> PatSynDetails -> Pat -> PatSynDir -> Doc
+ppr_patsyn t details pat dir = sep [ text "pattern" <+> ppr t]
 
 ppr_data :: Doc -> Cxt -> Name -> Doc -> Maybe Kind -> [Con] -> Cxt -> Doc
 ppr_data maybeInst ctxt t argsDoc ksig cs decs
