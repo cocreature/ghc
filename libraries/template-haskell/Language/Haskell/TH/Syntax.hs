@@ -1247,7 +1247,9 @@ data Info
   | TyVarI      -- Scoped type variable
         Name
         Type    -- What it is bound to
-  | PatSynI Dec
+  | PatSynI
+        Name
+        Type
   deriving( Show, Eq, Ord, Data, Typeable, Generic )
 
 -- | Obtained from 'reifyModule' in the 'Q' Monad.

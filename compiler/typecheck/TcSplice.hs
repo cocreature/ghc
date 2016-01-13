@@ -108,6 +108,7 @@ import Maybes( MaybeErr(..) )
 import DynFlags
 import Panic
 import Lexeme
+import PatSyn
 
 import qualified Language.Haskell.TH as TH
 -- THSyntax gives access to internal functions and data types
@@ -1262,9 +1263,11 @@ reifyThing (AGlobal (AConLike (RealDataCon dc)))
         ; return (TH.DataConI (reifyName name) ty
                               (reifyName (dataConOrigTyCon dc)))
         }
-reifyThing (AGlobal (AConLike (PatSynCon (MkPatSyn {psName = name}))))
-  = do undefined
-       return (TH.PatSynI _)
+reifyThing (AGlobal (AConLike (PatSynCon patSyn)))
+  = do { ty <- reifyType (patSynType patSyn)
+       ; return (TH.PatSynI (reifyName (patSynName patSyn))
+                            ty)
+       }
 
 reifyThing (ATcId {tct_id = id})
   = do  { ty1 <- zonkTcType (idType id) -- Make use of all the info we have, even

@@ -692,7 +692,7 @@ rep_sigs' sigs = do { sigs1 <- mapM rep_sig sigs ;
 
 rep_sig :: LSig Name -> DsM [(SrcSpan, Core TH.DecQ)]
 rep_sig (L loc (TypeSig nms ty))      = mapM (rep_wc_ty_sig sigDName loc ty) nms
-rep_sig (L _   (PatSynSig {}))        = notHandled "Pattern type signatures" empty
+rep_sig (L loc (PatSynSig nm ty))     = fmap (:[]) (rep_ty_sig sigDName loc ty nm)
 rep_sig (L loc (ClassOpSig is_deflt nms ty))
   | is_deflt                          = mapM (rep_ty_sig defaultSigDName loc ty) nms
   | otherwise                         = mapM (rep_ty_sig sigDName loc ty) nms
@@ -1403,7 +1403,10 @@ rep_bind (L _ (VarBind { var_id = v, var_rhs = e}))
         ; return (srcLocSpan (getSrcLoc v), ans) }
 
 rep_bind (L _ (AbsBinds {}))  = panic "rep_bind: AbsBinds"
-rep_bind (L _ dec@(PatSynBind {})) = notHandled "pattern synonyms" (ppr dec)
+rep_bind (L loc dec@(PatSynBind PSB {psb_id = nm, psb_args = details}))
+ =   do { nm' <- lookupLBinder nm
+          patcore <- repLP pat
+        ; return (loc,_) }
 -----------------------------------------------------------------------------
 -- Since everything in a Bind is mutually recursive we need rename all
 -- all the variables simultaneously. For example:
