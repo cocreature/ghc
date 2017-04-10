@@ -52,7 +52,7 @@ genLlvmProc (CmmProc infos lbl live graph) = do
     let blocks = toBlockListEntryFirstFalseFallthrough graph
     (lmblocks, lmdata) <- basicBlocksCodeGen live blocks
     let info = mapLookup (g_entry graph) infos
-        proc = CmmProc info lbl live (ListGraph lmblocks)
+        proc = CmmProc (g_entry graph, info) lbl live (ListGraph lmblocks)
     return (proc:lmdata)
 
 genLlvmProc _ = panic "genLlvmProc: case that shouldn't reach here!"

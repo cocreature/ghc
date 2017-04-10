@@ -1,8 +1,11 @@
+{-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE OverloadedStrings #-}
 
 module Llvm.MetaData where
 
 import Llvm.Types
+import FastString
 import Outputable
 
 -- The LLVM Metadata System.
@@ -64,11 +67,37 @@ newtype MetaId = MetaId Int
 instance Outputable MetaId where
     ppr (MetaId n) = char '!' <> int n
 
+data EmissionKind = NoDebug | FullDebug | LineTablesOnly deriving (Eq, Ord)
+
+instance Outputable EmissionKind where
+  ppr NoDebug = text "NoDebug"
+  ppr FullDebug = text "FullDebug"
+  ppr LineTablesOnly = text "LineTablesOnly"
+
 -- | LLVM metadata expressions
 data MetaExpr = MetaStr !LMString
               | MetaNode !MetaId
               | MetaVar !LlvmVar
               | MetaStruct [MetaExpr]
+              | MetaDIFile { difFilename  :: !FastString
+                           , difDirectory :: !FastString
+                           }
+              | MetaDISubroutineType { distType     :: ![MetaExpr] }
+              | MetaDICompileUnit { dicuLanguage     :: !FastString
+                                  , dicuFile         :: !MetaId
+                                  , dicuProducer     :: !FastString
+                                  , dicuIsOptimized  :: !Bool
+                                  , dicuEmissionKind :: !EmissionKind
+                                  }
+              | MetaDISubprogram { disName          :: !FastString
+                                 , disLinkageName   :: !FastString
+                                 , disScope         :: !MetaId
+                                 , disFile          :: !MetaId
+                                 , disLine          :: !Int
+                                 , disType          :: !MetaId
+                                 , disIsDefinition  :: !Bool
+                                 , disUnit          :: !MetaId
+                                 }
               deriving (Eq)
 
 instance Outputable MetaExpr where
@@ -77,6 +106,46 @@ instance Outputable MetaExpr where
   ppr (MetaNode   n ) = ppr n
   ppr (MetaVar    v ) = ppr v
   ppr (MetaStruct es) = char '!' <> braces (ppCommaJoin es)
+  ppr (MetaDIFile {..}) =
+      specialMetadata False "DIFile"
+      [ (text "filename" , doubleQuotes $ ftext difFilename)
+      , (text "directory", doubleQuotes $ ftext difDirectory)
+      ]
+  ppr (MetaDISubroutineType {..}) =
+      specialMetadata False "DISubroutineType"
+      [ (text "types", ppr $ MetaStruct distType ) ]
+  ppr (MetaDICompileUnit {..}) =
+      specialMetadata True "DICompileUnit"
+      [ (text "language"   , ftext dicuLanguage)
+      , (text "file"       , ppr dicuFile)
+      , (text "producer"   , doubleQuotes $ ftext dicuProducer)
+      , (text "isOptimized", if dicuIsOptimized
+                            then text "true"
+                            else text "false")
+      , (text "emissionKind", ppr dicuEmissionKind)
+      ]
+  ppr (MetaDISubprogram {..}) =
+      specialMetadata disIsDefinition "DISubprogram"
+      [ ("name"        , doubleQuotes $ ftext disName)
+      , ("linkageName" , doubleQuotes $ ftext disLinkageName)
+      , ("scope"       , ppr disScope)
+      , ("file"        , ppr disFile)
+      , ("line"        , ppr disLine)
+      , ("type"        , ppr disType)
+      , ("isDefinition", if disIsDefinition
+                              then text "true"
+                              else text "false")
+      , ("unit"        , ppr disUnit)
+      ]
+
+
+specialMetadata :: Bool -> SDoc -> [(SDoc, SDoc)] -> SDoc
+specialMetadata distinct nodeName fields =
+    (if distinct
+      then text "distinct "
+      else text "")
+    <> char '!' <> nodeName
+    <> parens (hsep $ punctuate comma $ map (\(k,v) -> k <> colon <+> v) fields)
 
 -- | Associates some metadata with a specific label for attaching to an
 -- instruction.
