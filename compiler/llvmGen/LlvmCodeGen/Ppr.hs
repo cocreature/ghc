@@ -137,12 +137,13 @@ pprLlvmCmmDecl debug_map cuMeta (CmmProc (label, mb_info) entry_lbl live (ListGr
                        return $ Just $ LMStaticStruc infoStatics infoTy
 
        -- generate debug information metadata
-       subprogAnnot <-
+       (subprogAnnot, instrAnnot) <-
            case mapLookup label debug_map >>= dblSourceTick of
              Just (SourceNote span name) -> do
                subprogMeta <- getMetaUniqueId
                fileMeta <- getMetaUniqueId
                typeMeta <- getMetaUniqueId
+               locationMeta <- getMetaUniqueId
                let fileDef = MetaUnnamed fileMeta
                              $ MetaDIFile { difFilename = tailFS $ srcSpanFile span
                                           , difDirectory = fsLit "/"
@@ -160,17 +161,28 @@ pprLlvmCmmDecl debug_map cuMeta (CmmProc (label, mb_info) entry_lbl live (ListGr
                                         , disIsDefinition = True
                                         , disUnit         = cuMeta
                                         }
+                   location =
+                     MetaUnnamed locationMeta
+                     $ MetaDILocation { dilLine = srcSpanStartLine span
+                                      , dilColumn = 1
+                                      , dilScope = subprogMeta
+                                      }
                addMetaDecl fileDef
                addMetaDecl typeMetaDef
                addSubprogram subprogMeta subprog
-               return $ Just $ MetaAnnot (fsLit "dbg") (MetaNode subprogMeta)
-             _   -> return Nothing
+               addMetaDecl location
+               return $ (Just (MetaAnnot (fsLit "dbg") (MetaNode subprogMeta)), Just (MetaAnnot (fsLit "dbg") (MetaNode locationMeta)))
+             _   -> return (Nothing, Nothing)
 
        let funcMetas = maybeToList subprogAnnot
+       let lmblocks' = case (lmblocks, instrAnnot) of
+             (LlvmBlock label (stmt : stmts) : blocks, Just instrAnnot') ->
+               LlvmBlock label (MetaStmt [instrAnnot'] stmt : stmts) : blocks
+             (blocks, Nothing) -> blocks
 
 
        let fun = LlvmFunction funDec funArgs llvmStdFunAttrs funSect
-                              prefix funcMetas lmblocks
+                              prefix funcMetas lmblocks'
            name = decName $ funcDecl fun
            funcDecl' = (funcDecl fun) { decName = defName }
            fun' = fun { funcDecl = funcDecl' }

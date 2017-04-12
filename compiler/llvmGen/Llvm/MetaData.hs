@@ -98,6 +98,11 @@ data MetaExpr = MetaStr !LMString
                                  , disIsDefinition  :: !Bool
                                  , disUnit          :: !MetaId
                                  }
+              | MetaDILocation { dilLine   :: !Int
+                               , dilColumn :: !Int
+                               , dilScope  :: !MetaId
+                               -- TODO LLVM supports inlinedAt. Is this useful for GHC?
+                               }
               deriving (Eq)
 
 instance Outputable MetaExpr where
@@ -136,6 +141,12 @@ instance Outputable MetaExpr where
                               then text "true"
                               else text "false")
       , ("unit"        , ppr disUnit)
+      ]
+  ppr (MetaDILocation {..}) =
+      specialMetadata False "DILocation"
+      [ ("line", ppr dilLine)
+      , ("column", ppr dilColumn)
+      , ("scope", ppr dilScope)
       ]
 
 

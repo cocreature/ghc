@@ -98,8 +98,8 @@ llvmCodeGen' location cmm_stream
         getMetaDecls >>= renderLlvm . ppLlvmMetas
         renderLlvm $ ppLlvmMetas
             [ MetaUnnamed fileMeta $ MetaDIFile
-              { difFilename     = fsLit $ fromMaybe "TODO" (ml_hs_file location)
-              , difDirectory    = fsLit ""
+              { difFilename     = tailFS . fsLit $ fromMaybe "TODO" (ml_hs_file location)
+              , difDirectory    = fsLit "/"
               }
             , MetaUnnamed cuMeta $ MetaDICompileUnit
               { dicuLanguage    = fsLit "DW_LANG_Haskell"
