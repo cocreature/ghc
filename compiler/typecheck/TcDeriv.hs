@@ -577,6 +577,7 @@ deriveStandalone (L loc (DerivDecl deriv_ty deriv_strat' overlap_mode))
 
               | isAlgTyCon tc || isDataFamilyTyCon tc  -- All other classes
               -> do { spec <- mkEqnHelp (fmap unLoc overlap_mode)
+                                        Nothing
                                         tvs cls cls_tys tc tc_args
                                         (Just theta) deriv_strat
                     ; return [spec] }
@@ -687,7 +688,7 @@ deriveTyData tvs tc tc_args deriv_strat deriv_pred
                 -- expand any type synonyms.
                 -- See Note [Eta-reducing type synonyms]
 
-        ; spec <- mkEqnHelp Nothing tkvs
+        ; spec <- mkEqnHelp Nothing Nothing tkvs
                             cls final_cls_tys tc final_tc_args
                             Nothing deriv_strat
         ; traceTc "derivTyData" (ppr spec)
@@ -864,6 +865,7 @@ the eta-reduced types before doing any analysis.
 -}
 
 mkEqnHelp :: Maybe OverlapMode
+          -> Maybe AdoptMode
           -> [TyVar]
           -> Class -> [Type]
           -> TyCon -> [Type]
@@ -876,7 +878,7 @@ mkEqnHelp :: Maybe OverlapMode
 -- where the 'theta' is optional (that's the Maybe part)
 -- Assumes that this declaration is well-kinded
 
-mkEqnHelp overlap_mode tvs cls cls_tys tycon tc_args mtheta deriv_strat
+mkEqnHelp overlap_mode adopt_mode tvs cls cls_tys tycon tc_args mtheta deriv_strat
   = do {      -- Find the instance of a data family
               -- Note [Looking up family instances for deriving]
          fam_envs <- tcGetFamInstEnvs
@@ -887,10 +889,10 @@ mkEqnHelp overlap_mode tvs cls cls_tys tycon tc_args mtheta deriv_strat
 
        ; dflags <- getDynFlags
        ; if isDataTyCon rep_tc then
-            mkDataTypeEqn dflags overlap_mode tvs cls cls_tys
+            mkDataTypeEqn dflags overlap_mode adopt_mode tvs cls cls_tys
                           tycon tc_args rep_tc rep_tc_args mtheta deriv_strat
          else
-            mkNewTypeEqn dflags overlap_mode tvs cls cls_tys
+            mkNewTypeEqn dflags overlap_mode adopt_mode tvs cls cls_tys
                          tycon tc_args rep_tc rep_tc_args mtheta deriv_strat }
   where
      bale_out msg = failWithTc (derivingThingErr False cls cls_tys
@@ -964,6 +966,7 @@ See Note [Eta reduction for data families] in FamInstEnv
 
 mkDataTypeEqn :: DynFlags
               -> Maybe OverlapMode
+              -> Maybe AdoptMode
               -> [TyVar]                -- Universally quantified type variables in the instance
               -> Class                  -- Class for which we need to derive an instance
               -> [Type]                 -- Other parameters to the class except the last
@@ -978,7 +981,7 @@ mkDataTypeEqn :: DynFlags
                                         -- Otherwise, 'Nothing'.
               -> TcRn EarlyDerivSpec    -- Return 'Nothing' if error
 
-mkDataTypeEqn dflags overlap_mode tvs cls cls_tys
+mkDataTypeEqn dflags overlap_mode adopt_mode tvs cls cls_tys
               tycon tc_args rep_tc rep_tc_args mtheta deriv_strat
   = case deriv_strat of
       Just StockStrategy    -> mk_eqn_stock dflags mtheta cls cls_tys rep_tc
@@ -991,12 +994,12 @@ mkDataTypeEqn dflags overlap_mode tvs cls cls_tys
       Nothing -> mk_eqn_no_mechanism dflags tycon mtheta cls cls_tys rep_tc
                    go_for_it bale_out
   where
-    go_for_it    = mk_data_eqn overlap_mode tvs cls cls_tys tycon tc_args
+    go_for_it    = mk_data_eqn overlap_mode adopt_mode tvs cls cls_tys tycon tc_args
                      rep_tc rep_tc_args mtheta (isJust deriv_strat)
     bale_out msg = failWithTc (derivingThingErr False cls cls_tys
                      (mkTyConApp tycon tc_args) deriv_strat msg)
 
-mk_data_eqn :: Maybe OverlapMode -> [TyVar] -> Class -> [Type]
+mk_data_eqn :: Maybe OverlapMode -> Maybe AdoptMode -> [TyVar] -> Class -> [Type]
             -> TyCon -> [TcType] -> TyCon -> [TcType] -> DerivContext
             -> Bool -- True if an explicit deriving strategy keyword was
                     -- provided
@@ -1004,7 +1007,7 @@ mk_data_eqn :: Maybe OverlapMode -> [TyVar] -> Class -> [Type]
                                   -- derive this instance, determined in
                                   -- mkDataTypeEqn/mkNewTypeEqn
             -> TcM EarlyDerivSpec
-mk_data_eqn overlap_mode tvs cls cls_tys tycon tc_args rep_tc rep_tc_args
+mk_data_eqn overlap_mode adopt_mode tvs cls cls_tys tycon tc_args rep_tc rep_tc_args
             mtheta strat_used mechanism
   = do doDerivInstErrorChecks1 cls cls_tys tycon tc_args rep_tc mtheta
                                strat_used mechanism
@@ -1022,6 +1025,7 @@ mk_data_eqn overlap_mode tvs cls cls_tys tycon tc_args rep_tc rep_tc_args
                    , ds_tc = rep_tc
                    , ds_theta = inferred_constraints
                    , ds_overlap = overlap_mode
+                   , ds_adopt = adopt_mode
                    , ds_mechanism = mechanism } }
 
         Just theta -> do -- Specified context
@@ -1032,6 +1036,7 @@ mk_data_eqn overlap_mode tvs cls cls_tys tycon tc_args rep_tc rep_tc_args
                    , ds_tc = rep_tc
                    , ds_theta = theta
                    , ds_overlap = overlap_mode
+                   , ds_adopt = adopt_mode
                    , ds_mechanism = mechanism }
   where
     inst_ty  = mkTyConApp tycon tc_args
@@ -1094,11 +1099,11 @@ mk_eqn_no_mechanism dflags tc mtheta cls cls_tys rep_tc go_for_it bale_out
 ************************************************************************
 -}
 
-mkNewTypeEqn :: DynFlags -> Maybe OverlapMode -> [TyVar] -> Class
+mkNewTypeEqn :: DynFlags -> Maybe OverlapMode -> Maybe AdoptMode -> [TyVar] -> Class
              -> [Type] -> TyCon -> [Type] -> TyCon -> [Type]
              -> DerivContext -> Maybe DerivStrategy
              -> TcRn EarlyDerivSpec
-mkNewTypeEqn dflags overlap_mode tvs
+mkNewTypeEqn dflags overlap_mode adopt_mode tvs
              cls cls_tys tycon tc_args rep_tycon rep_tc_args
              mtheta deriv_strat
 -- Want: instance (...) => cls (cls_tys ++ [tycon tc_args]) where ...
@@ -1186,6 +1191,7 @@ mkNewTypeEqn dflags overlap_mode tvs
                , ds_tc = rep_tycon
                , ds_theta = theta
                , ds_overlap = overlap_mode
+               , ds_adopt = adopt_mode
                , ds_mechanism = mechanism }
            Nothing -> return $ InferTheta $ DS
                { ds_loc = loc
@@ -1194,8 +1200,9 @@ mkNewTypeEqn dflags overlap_mode tvs
                , ds_tc = rep_tycon
                , ds_theta = all_thetas
                , ds_overlap = overlap_mode
+               , ds_adopt = adopt_mode
                , ds_mechanism = mechanism }
-        go_for_it_other = mk_data_eqn overlap_mode tvs cls cls_tys tycon
+        go_for_it_other = mk_data_eqn overlap_mode adopt_mode tvs cls cls_tys tycon
                             tc_args rep_tycon rep_tc_args mtheta strat_used
         bale_out    = bale_out' newtype_deriving
         bale_out' b = failWithTc . derivingThingErr b cls cls_tys inst_ty

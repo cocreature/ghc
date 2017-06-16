@@ -655,6 +655,7 @@ data Token
   | IToverlapping_prag  SourceText  -- instance overlap mode
   | IToverlaps_prag     SourceText  -- instance overlap mode
   | ITincoherent_prag   SourceText  -- instance overlap mode
+  | ITadopt_prag        SourceText
   | ITctype             SourceText
 
   | ITdotdot                    -- reserved symbols
@@ -2792,6 +2793,7 @@ oneWordPrags = Map.fromList [
      ("overlappable", strtoken (\s -> IToverlappable_prag (SourceText s))),
      ("overlapping", strtoken (\s -> IToverlapping_prag (SourceText s))),
      ("incoherent", strtoken (\s -> ITincoherent_prag (SourceText s))),
+     ("adopt", strtoken (\s -> ITadopt_prag (SourceText s))),
      ("ctype", strtoken (\s -> ITctype (SourceText s))),
      ("complete", strtoken (\s -> ITcomplete_prag (SourceText s))),
      ("column", begin column_prag)

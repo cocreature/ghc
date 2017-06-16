@@ -664,9 +664,9 @@ tcGetInsts :: TcM [ClsInst]
 -- Gets the local class instances.
 tcGetInsts = fmap tcg_insts getGblEnv
 
-newClsInst :: Maybe OverlapMode -> Name -> [TyVar] -> ThetaType
+newClsInst :: Maybe OverlapMode -> Maybe AdoptMode -> Name -> [TyVar] -> ThetaType
            -> Class -> [Type] -> TcM ClsInst
-newClsInst overlap_mode dfun_name tvs theta clas tys
+newClsInst overlap_mode adopt_mode dfun_name tvs theta clas tys
   = do { (subst, tvs') <- freshenTyVarBndrs tvs
              -- Be sure to freshen those type variables,
              -- so they are sure not to appear in any lookup
@@ -680,7 +680,7 @@ newClsInst overlap_mode dfun_name tvs theta clas tys
              --     helpful to use the same names
 
        ; oflag <- getOverlapFlag overlap_mode
-       ; let inst = mkLocalInstance dfun oflag tvs' clas tys'
+       ; let inst = mkLocalInstance dfun oflag adopt_mode tvs' clas tys'
        ; warnIf (Reason Opt_WarnOrphans)
                 (isOrphan (is_orphan inst))
                 (instOrphWarn inst)

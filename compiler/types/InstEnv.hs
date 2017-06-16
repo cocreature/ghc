@@ -11,7 +11,7 @@ The bits common to TcInstDcls and TcDeriv.
 
 module InstEnv (
         DFunId, InstMatch, ClsInstLookupResult,
-        OverlapFlag(..), OverlapMode(..), setOverlapModeMaybe,
+        OverlapFlag(..), OverlapMode(..), AdoptMode(..), setOverlapModeMaybe,
         ClsInst(..), DFunInstType, pprInstance, pprInstanceHdr, pprInstances,
         instanceHead, instanceSig, mkLocalInstance, mkImportedInstance,
         instanceDFunId, tidyClsInstDFun, instanceRoughTcs,
@@ -251,13 +251,13 @@ instanceSig :: ClsInst -> ([TyVar], [Type], Class, [Type])
 -- Decomposes the DFunId
 instanceSig ispec = tcSplitDFunTy (idType (is_dfun ispec))
 
-mkLocalInstance :: DFunId -> OverlapFlag
+mkLocalInstance :: DFunId -> OverlapFlag -> Maybe AdoptMode
                 -> [TyVar] -> Class -> [Type]
                 -> ClsInst
 -- Used for local instances, where we can safely pull on the DFunId.
 -- Consider using newClsInst instead; this will also warn if
 -- the instance is an orphan.
-mkLocalInstance dfun oflag tvs cls tys
+mkLocalInstance dfun oflag adoptMode tvs cls tys
   = ClsInst { is_flag = oflag, is_dfun = dfun
             , is_tvs = tvs
             , is_dfun_name = dfun_name
@@ -277,6 +277,7 @@ mkLocalInstance dfun oflag tvs cls tys
 
     -- See Note [When exactly is an instance decl an orphan?]
     orph | is_local cls_name = NotOrphan (nameOccName cls_name)
+         | isJust adoptMode = Adopted
          | all notOrphan mb_ns  = ASSERT( not (null mb_ns) ) head mb_ns
          | otherwise         = IsOrphan
 

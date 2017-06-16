@@ -60,6 +60,7 @@ data DerivSpec theta = DS { ds_loc       :: SrcSpan
                           , ds_tys       :: [Type]
                           , ds_tc        :: TyCon
                           , ds_overlap   :: Maybe OverlapMode
+                          , ds_adopt     :: Maybe AdoptMode
                           , ds_mechanism :: DerivSpecMechanism }
         -- This spec implies a dfun declaration of the form
         --       df :: forall tvs. theta => C tys
@@ -582,9 +583,9 @@ badCon con msg = text "Constructor" <+> quotes (ppr con) <+> msg
 ------------------------------------------------------------------
 
 newDerivClsInst :: ThetaType -> DerivSpec theta -> TcM ClsInst
-newDerivClsInst theta (DS { ds_name = dfun_name, ds_overlap = overlap_mode
+newDerivClsInst theta (DS { ds_name = dfun_name, ds_overlap = overlap_mode, ds_adopt = adopt_mode
                           , ds_tvs = tvs, ds_cls = clas, ds_tys = tys })
-  = newClsInst overlap_mode dfun_name tvs theta clas tys
+  = newClsInst overlap_mode adopt_mode dfun_name tvs theta clas tys
 
 extendLocalInstEnv :: [ClsInst] -> TcM a -> TcM a
 -- Add new locally-defined instances; don't bother to check

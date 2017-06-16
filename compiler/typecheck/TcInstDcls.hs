@@ -466,6 +466,7 @@ tcClsInstDecl :: LClsInstDecl GhcRn
 tcClsInstDecl (L loc (ClsInstDecl { cid_poly_ty = poly_ty, cid_binds = binds
                                   , cid_sigs = uprags, cid_tyfam_insts = ats
                                   , cid_overlap_mode = overlap_mode
+                                  , cid_adopt_mode = adopt_mode
                                   , cid_datafam_insts = adts }))
   = setSrcSpan loc                      $
     addErrCtxt (instDeclCtxt1 poly_ty)  $
@@ -496,7 +497,7 @@ tcClsInstDecl (L loc (ClsInstDecl { cid_poly_ty = poly_ty, cid_binds = binds
         ; dfun_name <- newDFunName clas inst_tys (getLoc (hsSigType poly_ty))
                 -- Dfun location is that of instance *header*
 
-        ; ispec <- newClsInst (fmap unLoc overlap_mode) dfun_name tyvars theta
+        ; ispec <- newClsInst (fmap unLoc overlap_mode) (fmap unLoc adopt_mode) dfun_name tyvars theta
                               clas inst_tys
 
         ; let inst_info = InstInfo { iSpec  = ispec

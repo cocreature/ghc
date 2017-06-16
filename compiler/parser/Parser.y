@@ -442,6 +442,7 @@ are the most common patterns, rewritten as regular expressions for clarity:
  '{-# OVERLAPS'           { L _ (IToverlaps_prag _) }
  '{-# INCOHERENT'         { L _ (ITincoherent_prag _) }
  '{-# COMPLETE'           { L _ (ITcomplete_prag _)   }
+ '{-# ADOPT'              { L _ (ITadopt_prag _) }
  '#-}'                    { L _ ITclose_prag }
 
  '..'           { L _ ITdotdot }                        -- reserved symbols
@@ -1064,15 +1065,16 @@ ty_decl :: { LTyClDecl GhcPs }
                         (mj AnnData $1:mj AnnFamily $2:(fst $ unLoc $4)) }
 
 inst_decl :: { LInstDecl GhcPs }
-        : 'instance' overlap_pragma inst_type where_inst
-       {% do { (binds, sigs, _, ats, adts, _) <- cvBindsAndSigs (snd $ unLoc $4)
-             ; let cid = ClsInstDecl { cid_poly_ty = $3, cid_binds = binds
+        : 'instance' overlap_pragma adopt_pragma inst_type where_inst
+       {% do { (binds, sigs, _, ats, adts, _) <- cvBindsAndSigs (snd $ unLoc $5)
+             ; let cid = ClsInstDecl { cid_poly_ty = $4, cid_binds = binds
                                      , cid_sigs = mkClassOpSigs sigs
                                      , cid_tyfam_insts = ats
                                      , cid_overlap_mode = $2
+                                     , cid_adopt_mode = $3
                                      , cid_datafam_insts = adts }
-             ; ams (L (comb3 $1 (hsSigType $3) $4) (ClsInstD { cid_inst = cid }))
-                   (mj AnnInstance $1 : (fst $ unLoc $4)) } }
+             ; ams (L (comb3 $1 (hsSigType $4) $5) (ClsInstD { cid_inst = cid }))
+                   (mj AnnInstance $1 : (fst $ unLoc $5)) } }
 
            -- type instance declarations
         | 'type' 'instance' ty_fam_inst_eqn
@@ -1108,6 +1110,11 @@ overlap_pragma :: { Maybe (Located OverlapMode) }
   | '{-# INCOHERENT'      '#-}' {% ajs (Just (sLL $1 $> (Incoherent (getINCOHERENT_PRAGs $1))))
                                        [mo $1,mc $2] }
   | {- empty -}                 { Nothing }
+
+adopt_pragma :: { Maybe (Located AdoptMode) }
+  : '{-# ADOPT' '#-}'  {% ajs (Just (sLL $1 $> (Adopt (getADOPT_PRAGs $1))))
+                              [mo $1,mc $2] }
+  | {- empty -}        { Nothing }
 
 deriv_strategy :: { Maybe (Located DerivStrategy) }
   : 'stock'                     {% ajs (Just (sL1 $1 StockStrategy))
@@ -3444,6 +3451,7 @@ getOVERLAPPABLE_PRAGs (L _ (IToverlappable_prag src)) = src
 getOVERLAPPING_PRAGs  (L _ (IToverlapping_prag  src)) = src
 getOVERLAPS_PRAGs     (L _ (IToverlaps_prag     src)) = src
 getINCOHERENT_PRAGs   (L _ (ITincoherent_prag   src)) = src
+getADOPT_PRAGs        (L _ (ITadopt_prag        src)) = src
 getCTYPEs             (L _ (ITctype             src)) = src
 
 getStringLiteral l = StringLiteral (getSTRINGs l) (getSTRING l)

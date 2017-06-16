@@ -667,6 +667,7 @@ rnClsInstDecl :: ClsInstDecl GhcPs -> RnM (ClsInstDecl GhcRn, FreeVars)
 rnClsInstDecl (ClsInstDecl { cid_poly_ty = inst_ty, cid_binds = mbinds
                            , cid_sigs = uprags, cid_tyfam_insts = ats
                            , cid_overlap_mode = oflag
+                           , cid_adopt_mode = aflag
                            , cid_datafam_insts = adts })
   = do { (inst_ty', inst_fvs) <- rnLHsInstType (text "an instance declaration") inst_ty
        ; let (ktv_names, _, head_ty') = splitLHsInstDeclTy inst_ty'
@@ -699,6 +700,7 @@ rnClsInstDecl (ClsInstDecl { cid_poly_ty = inst_ty, cid_binds = mbinds
        ; return (ClsInstDecl { cid_poly_ty = inst_ty', cid_binds = mbinds'
                              , cid_sigs = uprags', cid_tyfam_insts = ats'
                              , cid_overlap_mode = oflag
+                             , cid_adopt_mode = aflag
                              , cid_datafam_insts = adts' },
                  all_fvs) }
              -- We return the renamed associated data type declarations so

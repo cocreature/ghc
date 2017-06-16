@@ -1050,6 +1050,7 @@ data IsOrphan
   | NotOrphan OccName -- The OccName 'n' witnesses the instance's non-orphanhood
                       -- In that case, the instance is fingerprinted as part
                       -- of the definition of 'n's definition
+  | Adopted
     deriving Data
 
 -- | Returns true if 'IsOrphan' is orphan.
@@ -1060,6 +1061,7 @@ isOrphan _ = False
 -- | Returns true if 'IsOrphan' is not an orphan.
 notOrphan :: IsOrphan -> Bool
 notOrphan NotOrphan{} = True
+notOrphan Adopted = True
 notOrphan _ = False
 
 chooseOrphanAnchor :: NameSet -> IsOrphan
@@ -1083,13 +1085,15 @@ instance Binary IsOrphan where
     put_ bh (NotOrphan n) = do
         putByte bh 1
         put_ bh n
+    put_ bh Adopted = putByte bh 2
     get bh = do
         h <- getByte bh
         case h of
             0 -> return IsOrphan
-            _ -> do
+            1 -> do
                 n <- get bh
                 return $ NotOrphan n
+            _ -> return Adopted
 
 {-
 Note [Orphans]

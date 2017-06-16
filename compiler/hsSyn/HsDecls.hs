@@ -1425,6 +1425,7 @@ data ClsInstDecl pass
       , cid_tyfam_insts   :: [LTyFamInstDecl pass]   -- Type family instances
       , cid_datafam_insts :: [LDataFamInstDecl pass] -- Data family instances
       , cid_overlap_mode  :: Maybe (Located OverlapMode)
+      , cid_adopt_mode    :: Maybe (Located AdoptMode)
          -- ^ - 'ApiAnnotation.AnnKeywordId' : 'ApiAnnotation.AnnOpen',
          --                                    'ApiAnnotation.AnnClose',
 

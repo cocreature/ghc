@@ -50,6 +50,8 @@ module BasicTypes(
         OverlapFlag(..), OverlapMode(..), setOverlapModeMaybe,
         hasOverlappingFlag, hasOverlappableFlag, hasIncoherentFlag,
 
+        AdoptMode(..),
+
         Boxity(..), isBoxed,
 
         TyPrec(..), maybeParen,
@@ -672,6 +674,9 @@ data OverlapMode  -- See Note [Rules for instance lookup] in InstEnv
 
   deriving (Eq, Data)
 
+data AdoptMode
+  = Adopt SourceText
+  deriving (Eq, Data)
 
 instance Outputable OverlapFlag where
    ppr flag = ppr (overlapMode flag) <+> pprSafeOverlap (isSafeOverlap flag)
